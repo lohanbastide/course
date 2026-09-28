@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f7a4d">
+<title>Liste de courses</title>
+<style>
+:root{
+  --bg:#f3f7f4; --surface:#fff; --fg:#14231b; --muted:#5d7166; --line:#dbe5de;
+  --accent:#1f7a4d; --accent-fg:#fff; --alert:#c8432b;
+  --f:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1a14; --surface:#17261d; --fg:#e6f0e9; --muted:#93a89b; --line:#28392e;
+  --accent:#4fbf83; --accent-fg:#08150d; --alert:#ef7a63}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 var(--f)}
+.wrap{max-width:560px;margin:0 auto;padding:max(20px,env(safe-area-inset-top)) 16px 48px;display:flex;flex-direction:column;gap:16px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-size:1.8rem;line-height:1.05;margin:0}
+.meta{display:flex;flex-direction:column;align-items:flex-end;gap:2px;color:var(--muted);font-size:.85rem}
+.sync{display:inline-flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.sync.on .dot{background:var(--accent)}
+form{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px}
+.row{display:flex;gap:8px}
+input,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;min-width:0}
+#name{flex:1}#qty{width:5.5rem}select{flex:1}
+button{font:inherit;cursor:pointer;border:0;border-radius:10px}
+.add{background:var(--accent);color:var(--accent-fg);font-weight:600;padding:11px 18px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.group{display:flex;flex-direction:column;gap:6px}
+h2{font-size:.75rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:8px 2px 0;font-weight:600}
+ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+li{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:2px 4px 2px 2px}
+.tick{flex:none;display:flex;align-items:center;justify-content:center;width:44px;height:44px;background:none}
+.box{width:24px;height:24px;border-radius:7px;border:2px solid var(--muted);display:flex;align-items:center;justify-content:center;color:transparent;font-weight:700;font-size:.9rem}
+.label{flex:1;min-width:0;overflow-wrap:anywhere}
+.q{color:var(--muted);font-size:.85rem;white-space:nowrap}
+.del{flex:none;width:40px;height:40px;background:none;color:var(--muted);font-size:1.25rem}
+.del:hover{color:var(--alert)}
+li.done .label{text-decoration:line-through;color:var(--muted)}
+li.done .box{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.tools{display:flex;justify-content:center}
+.clear{background:none;color:var(--alert);padding:10px 14px;border:1px solid var(--line);font-size:.9rem}
+.empty{text-align:center;color:var(--muted);padding:28px 12px;border:1px dashed var(--line);border-radius:14px}
+.err{color:var(--alert);font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Liste de courses</h1>
+    <div class="meta"><span id="count"></span><span class="sync" id="sync"><span class="dot"></span><span id="synctxt">Connexion…</span></span></div>
+  </header>
+  <form id="form" autocomplete="off">
+    <div class="row">
+      <input type="text" id="name" placeholder="Ajouter un article" aria-label="Article" maxlength="80" required>
+      <input type="text" id="qty" placeholder="Qté" aria-label="Quantité" maxlength="20">
+    </div>
+    <div class="row">
+      <select id="cat" aria-label="Rayon"></select>
+      <button class="add" type="submit">Ajouter</button>
+    </div>
+    <div class="err" id="err" hidden></div>
+  </form>
+  <main id="list"></main>
+  <div class="tools" id="tools" hidden><button class="clear" id="clear" type="button">Supprimer les articles cochés</button></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import { getDatabase, ref, onValue, push, set, update, remove } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAsgEAN-vRQz6hyohDAvUaFpGZ_I-YRzCU",
+  authDomain: "course-fbea9.firebaseapp.com",
+  databaseURL: "https://course-fbea9-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "course-fbea9",
+  storageBucket: "course-fbea9.firebasestorage.app",
+  messagingSenderId: "936749336895",
+  appId: "1:936749336895:web:73fe600b5eca8eeed1eb8a"
+};
+
+(function(){
+  var CATS=["Fruits et légumes","Frais et crèmerie","Viande et poisson","Épicerie","Boulangerie","Boissons","Surgelés","Maison et hygiène","Autre"];
+  var items=[], ready=false, api=null;
+  var $=function(i){return document.getElementById(i)};
+  var cat=$("cat");
+  CATS.forEach(function(c){var o=document.createElement("option");o.value=c;o.textContent=c;cat.appendChild(o)});
+  try{var last=localStorage.getItem("lc_cat");if(last&&CATS.indexOf(last)>-1)cat.value=last}catch(e){}
+
+  function setSync(on,t){$("sync").className="sync"+(on?" on":"");$("synctxt").textContent=t}
+  function showErr(m){var e=$("err");e.textContent=m||"";e.hidden=!m}
+
+  function render(){
+    var list=$("list");list.textContent="";
+    var open=items.filter(function(i){return !i.done}).length;
+    $("count").textContent=items.length?open+" à acheter":"";
+    $("tools").hidden=!items.some(function(i){return i.done});
+    if(!items.length){
+      var d=document.createElement("div");d.className="empty";
+      d.textContent=ready?"La liste est vide. Ajoute le premier article ci-dessus, il apparaîtra sur l'autre téléphone.":"Chargement de la liste…";
+      list.appendChild(d);return;
+    }
+    CATS.forEach(function(c){
+      var g=items.filter(function(i){return i.cat===c});
+      if(!g.length)return;
+      g.sort(function(a,b){return ((a.done?1:0)-(b.done?1:0))||(a.at-b.at)});
+      var s=document.createElement("section");s.className="group";
+      var h=document.createElement("h2");h.textContent=c;s.appendChild(h);
+      var ul=document.createElement("ul");
+      g.forEach(function(it){
+        var li=document.createElement("li");li.className=it.done?"done":"";li.dataset.id=it.id;
+        var t=document.createElement("button");t.className="tick";t.type="button";t.dataset.act="toggle";
+        t.setAttribute("aria-label",(it.done?"Décocher ":"Cocher ")+it.name);t.setAttribute("aria-pressed",it.done?"true":"false");
+        var b=document.createElement("span");b.className="box";b.textContent="✓";t.appendChild(b);
+        var l=document.createElement("span");l.className="label";l.textContent=it.name;
+        li.appendChild(t);li.appendChild(l);
+        if(it.qty){var q=document.createElement("span");q.className="q";q.textContent=it.qty;li.appendChild(q)}
+        var x=document.createElement("button");x.className="del";x.type="button";x.dataset.act="del";x.setAttribute("aria-label","Supprimer "+it.name);x.textContent="×";
+        li.appendChild(x);ul.appendChild(li);
+      });
+      s.appendChild(ul);list.appendChild(s);
+    });
+  }
+
+  function guard(p){return p.then(function(){showErr("")},function(){showErr("Échec de l'enregistrement. Vérifie la connexion et les règles de la base.")})}
+
+  $("form").addEventListener("submit",function(ev){
+    ev.preventDefault();
+    if(!api)return;
+    var n=$("name").value.trim();if(!n)return;
+    var data={name:n,qty:$("qty").value.trim(),cat:cat.value,done:false,at:Date.now()};
+    try{localStorage.setItem("lc_cat",cat.value)}catch(e){}
+    $("name").value="";$("qty").value="";$("name").focus();
+    guard(api.add(data));
+  });
+
+  $("list").addEventListener("click",function(ev){
+    var btn=ev.target.closest("button[data-act]");if(!btn||!api)return;
+    var id=btn.closest("li").dataset.id;
+    var it=items.filter(function(i){return i.id===id})[0];if(!it)return;
+    if(btn.dataset.act==="toggle")guard(api.update(id,{done:!it.done}));
+    else guard(api.remove(id));
+  });
+
+  $("clear").addEventListener("click",function(){
+    if(!api)return;
+    var up={};items.forEach(function(i){if(i.done)up[i.id]=null});
+    guard(api.multi(up));
+  });
+
+  render();
+
+  try{
+    const app=initializeApp(firebaseConfig);
+    const db=firebaseConfig.databaseURL?getDatabase(app,firebaseConfig.databaseURL):getDatabase(app);
+    const items_=ref(db,"items");
+    api={
+      add:function(d){return set(push(items_),d)},
+      update:function(id,d){return update(ref(db,"items/"+id),d)},
+      remove:function(id){return remove(ref(db,"items/"+id))},
+      multi:function(up){return update(items_,up)}
+    };
+    onValue(ref(db,".info/connected"),function(s){setSync(!!s.val(),s.val()?"Synchronisé":"Hors ligne")});
+    onValue(items_,function(snap){
+      var v=snap.val()||{};
+      items=Object.keys(v).map(function(k){var o=v[k]||{};return {id:k,name:String(o.name||""),qty:String(o.qty||""),cat:CATS.indexOf(o.cat)>-1?o.cat:"Autre",done:!!o.done,at:+o.at||0}});
+      ready=true;render();
+    },function(){setSync(false,"Erreur");showErr("Lecture refusée. Vérifie les règles de la base.")});
+  }catch(e){setSync(false,"Erreur");showErr("Initialisation Firebase impossible. Vérifie firebaseConfig.")}
+})();
+</script>
+</body>
+</html>
