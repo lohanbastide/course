@@ -8,28 +8,36 @@
 <style>
 :root{
   --bg:#f3f7f4; --surface:#fff; --fg:#14231b; --muted:#5d7166; --line:#dbe5de;
-  --accent:#1f7a4d; --accent-fg:#fff; --alert:#c8432b;
+  --accent:#1f7a4d; --accent-fg:#fff; --alert:#c8432b; --soft:#e2f2e9;
   --f:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   color-scheme:light dark;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#0f1a14; --surface:#17261d; --fg:#e6f0e9; --muted:#93a89b; --line:#28392e;
-  --accent:#4fbf83; --accent-fg:#08150d; --alert:#ef7a63}}
+  --accent:#4fbf83; --accent-fg:#08150d; --alert:#ef7a63; --soft:#1d3527}}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 var(--f)}
 .wrap{max-width:560px;margin:0 auto;padding:max(20px,env(safe-area-inset-top)) 16px 48px;display:flex;flex-direction:column;gap:16px}
 header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
 h1{font-size:1.8rem;line-height:1.05;margin:0}
+h3{margin:0;font-size:1.4rem;line-height:1.15;overflow-wrap:anywhere}
 .meta{display:flex;flex-direction:column;align-items:flex-end;gap:2px;color:var(--muted);font-size:.85rem}
 .sync{display:inline-flex;align-items:center;gap:6px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
 .sync.on .dot{background:var(--accent)}
-form{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px}
+.tab{flex:1;background:none;color:var(--muted);padding:10px;font-weight:600}
+.tab[aria-selected="true"]{background:var(--accent);color:var(--accent-fg)}
+form,.card-box{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px}
 .row{display:flex;gap:8px}
-input,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;min-width:0}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;min-width:0;width:100%}
 #name{flex:1}#qty{width:5.5rem}select{flex:1}
+textarea{min-height:130px;resize:vertical}
 button{font:inherit;cursor:pointer;border:0;border-radius:10px}
 .add{background:var(--accent);color:var(--accent-fg);font-weight:600;padding:11px 18px}
+.ghost{background:none;color:var(--fg);border:1px solid var(--line);padding:10px 14px}
+.danger{background:none;color:var(--alert);border:1px solid var(--line);padding:10px 14px}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .group{display:flex;flex-direction:column;gap:6px}
 h2{font-size:.75rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:8px 2px 0;font-weight:600}
@@ -44,9 +52,24 @@ li{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px 
 li.done .label{text-decoration:line-through;color:var(--muted)}
 li.done .box{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
 .tools{display:flex;justify-content:center}
-.clear{background:none;color:var(--alert);padding:10px 14px;border:1px solid var(--line);font-size:.9rem}
 .empty{text-align:center;color:var(--muted);padding:28px 12px;border:1px dashed var(--line);border-radius:14px}
 .err{color:var(--alert);font-size:.9rem}
+.ok{color:var(--accent);font-size:.9rem}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.rcard{display:flex;flex-direction:column;text-align:left;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:14px;padding:0;overflow:hidden}
+.rcard .ph{aspect-ratio:4/3;background:var(--soft);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.8rem}
+.rcard img,.hero{width:100%;height:100%;object-fit:cover;display:block}
+.rcard .tx{padding:10px;display:flex;flex-direction:column;gap:2px}
+.rcard .nm{font-weight:600;overflow-wrap:anywhere}
+.rcard .sub{color:var(--muted);font-size:.8rem}
+.hero{aspect-ratio:4/3;height:auto;border-radius:14px}
+.steps{white-space:pre-wrap;overflow-wrap:anywhere}
+.lbl{font-size:.75rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.irow{display:flex;flex-wrap:wrap;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.irow .n{flex:1 1 55%}.irow .qq{flex:0 0 5.5rem;width:5.5rem}
+.irow select{flex:1 1 50%}
+.actions{display:flex;flex-direction:column;gap:8px}
+.actions .row>*{flex:1}
 </style>
 </head>
 <body>
@@ -55,19 +78,31 @@ li.done .box{background:var(--accent);border-color:var(--accent);color:var(--acc
     <h1>Liste de courses</h1>
     <div class="meta"><span id="count"></span><span class="sync" id="sync"><span class="dot"></span><span id="synctxt">Connexion…</span></span></div>
   </header>
-  <form id="form" autocomplete="off">
-    <div class="row">
-      <input type="text" id="name" placeholder="Ajouter un article" aria-label="Article" maxlength="80" required>
-      <input type="text" id="qty" placeholder="Qté" aria-label="Quantité" maxlength="20">
-    </div>
-    <div class="row">
-      <select id="cat" aria-label="Rayon"></select>
-      <button class="add" type="submit">Ajouter</button>
-    </div>
-    <div class="err" id="err" hidden></div>
-  </form>
-  <main id="list"></main>
-  <div class="tools" id="tools" hidden><button class="clear" id="clear" type="button">Supprimer les articles cochés</button></div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" id="tabList" role="tab" type="button" aria-selected="true">Courses</button>
+    <button class="tab" id="tabRec" role="tab" type="button" aria-selected="false">Recettes</button>
+  </div>
+
+  <section id="paneList" style="display:flex;flex-direction:column;gap:16px">
+    <form id="form" autocomplete="off">
+      <div class="row">
+        <input type="text" id="name" placeholder="Ajouter un article" aria-label="Article" maxlength="80" required>
+        <input type="text" id="qty" placeholder="Qté" aria-label="Quantité" maxlength="20">
+      </div>
+      <div class="row">
+        <select id="cat" aria-label="Rayon"></select>
+        <button class="add" type="submit">Ajouter</button>
+      </div>
+      <div class="err" id="err" hidden></div>
+    </form>
+    <main id="list"></main>
+    <div class="tools" id="tools" hidden><button class="danger" id="clear" type="button">Supprimer les articles cochés</button></div>
+  </section>
+
+  <section id="paneRec" style="display:flex;flex-direction:column;gap:16px" hidden>
+    <div id="recipes"></div>
+  </section>
 </div>
 
 <script type="module">
@@ -86,48 +121,59 @@ const firebaseConfig = {
 
 (function(){
   var CATS=["Fruits et légumes","Frais et crèmerie","Viande et poisson","Épicerie","Boulangerie","Boissons","Surgelés","Maison et hygiène","Autre"];
-  var items=[], ready=false, api=null;
+  var items=[], recipes=[], ready=false, api=null, tab="list", rview={mode:"list"};
   var $=function(i){return document.getElementById(i)};
+  function h(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
+  function catSelect(sel){var s=document.createElement("select");CATS.forEach(function(c){var o=document.createElement("option");o.value=c;o.textContent=c;s.appendChild(o)});if(sel&&CATS.indexOf(sel)>-1)s.value=sel;return s}
+
   var cat=$("cat");
   CATS.forEach(function(c){var o=document.createElement("option");o.value=c;o.textContent=c;cat.appendChild(o)});
   try{var last=localStorage.getItem("lc_cat");if(last&&CATS.indexOf(last)>-1)cat.value=last}catch(e){}
 
   function setSync(on,t){$("sync").className="sync"+(on?" on":"");$("synctxt").textContent=t}
   function showErr(m){var e=$("err");e.textContent=m||"";e.hidden=!m}
+  function guard(p){return p.then(function(){showErr("")},function(){showErr("Échec de l'enregistrement. Vérifie la connexion et les règles de la base.")})}
 
+  /* ---------- Onglets ---------- */
+  function setTab(t){
+    tab=t;
+    $("paneList").hidden=(t!=="list");$("paneRec").hidden=(t!=="rec");
+    $("tabList").setAttribute("aria-selected",t==="list"?"true":"false");
+    $("tabRec").setAttribute("aria-selected",t==="rec"?"true":"false");
+    if(t==="rec")renderRecipes();
+  }
+  $("tabList").addEventListener("click",function(){setTab("list")});
+  $("tabRec").addEventListener("click",function(){setTab("rec")});
+
+  /* ---------- Courses ---------- */
   function render(){
     var list=$("list");list.textContent="";
     var open=items.filter(function(i){return !i.done}).length;
     $("count").textContent=items.length?open+" à acheter":"";
     $("tools").hidden=!items.some(function(i){return i.done});
     if(!items.length){
-      var d=document.createElement("div");d.className="empty";
-      d.textContent=ready?"La liste est vide. Ajoute le premier article ci-dessus, il apparaîtra sur l'autre téléphone.":"Chargement de la liste…";
-      list.appendChild(d);return;
+      list.appendChild(h("div","empty",ready?"La liste est vide. Ajoute le premier article ci-dessus, il apparaîtra sur l'autre téléphone.":"Chargement de la liste…"));return;
     }
     CATS.forEach(function(c){
       var g=items.filter(function(i){return i.cat===c});
       if(!g.length)return;
       g.sort(function(a,b){return ((a.done?1:0)-(b.done?1:0))||(a.at-b.at)});
-      var s=document.createElement("section");s.className="group";
-      var h=document.createElement("h2");h.textContent=c;s.appendChild(h);
+      var s=h("section","group");
+      s.appendChild(h("h2",null,c));
       var ul=document.createElement("ul");
       g.forEach(function(it){
-        var li=document.createElement("li");li.className=it.done?"done":"";li.dataset.id=it.id;
-        var t=document.createElement("button");t.className="tick";t.type="button";t.dataset.act="toggle";
+        var li=h("li",it.done?"done":"");li.dataset.id=it.id;
+        var t=h("button","tick");t.type="button";t.dataset.act="toggle";
         t.setAttribute("aria-label",(it.done?"Décocher ":"Cocher ")+it.name);t.setAttribute("aria-pressed",it.done?"true":"false");
-        var b=document.createElement("span");b.className="box";b.textContent="✓";t.appendChild(b);
-        var l=document.createElement("span");l.className="label";l.textContent=it.name;
-        li.appendChild(t);li.appendChild(l);
-        if(it.qty){var q=document.createElement("span");q.className="q";q.textContent=it.qty;li.appendChild(q)}
-        var x=document.createElement("button");x.className="del";x.type="button";x.dataset.act="del";x.setAttribute("aria-label","Supprimer "+it.name);x.textContent="×";
+        t.appendChild(h("span","box","✓"));
+        li.appendChild(t);li.appendChild(h("span","label",it.name));
+        if(it.qty)li.appendChild(h("span","q",it.qty));
+        var x=h("button","del","×");x.type="button";x.dataset.act="del";x.setAttribute("aria-label","Supprimer "+it.name);
         li.appendChild(x);ul.appendChild(li);
       });
       s.appendChild(ul);list.appendChild(s);
     });
   }
-
-  function guard(p){return p.then(function(){showErr("")},function(){showErr("Échec de l'enregistrement. Vérifie la connexion et les règles de la base.")})}
 
   $("form").addEventListener("submit",function(ev){
     ev.preventDefault();
@@ -138,7 +184,6 @@ const firebaseConfig = {
     $("name").value="";$("qty").value="";$("name").focus();
     guard(api.add(data));
   });
-
   $("list").addEventListener("click",function(ev){
     var btn=ev.target.closest("button[data-act]");if(!btn||!api)return;
     var id=btn.closest("li").dataset.id;
@@ -146,24 +191,225 @@ const firebaseConfig = {
     if(btn.dataset.act==="toggle")guard(api.update(id,{done:!it.done}));
     else guard(api.remove(id));
   });
-
   $("clear").addEventListener("click",function(){
     if(!api)return;
     var up={};items.forEach(function(i){if(i.done)up[i.id]=null});
     guard(api.multi(up));
   });
 
+  /* ---------- Recettes ---------- */
+  function findRecipe(id){return recipes.filter(function(r){return r.id===id})[0]}
+
+  function renderRecipes(){
+    if(tab!=="rec")return;
+    if(rview.mode==="edit")return;           /* l'éditeur n'est jamais redessiné par une synchro */
+    if(rview.mode==="detail"){
+      if(findRecipe(rview.id)){drawDetail(rview.id);return}
+      if(ready)rview={mode:"list"};
+    }
+    drawRecList();
+  }
+
+  function drawRecList(){
+    var box=$("recipes");box.textContent="";
+    var b=h("button","add","+ Nouvelle recette");b.type="button";b.style.width="100%";
+    b.addEventListener("click",function(){rview={mode:"edit",id:null};drawEditor(null)});
+    box.appendChild(b);
+    var wrap=h("div");wrap.style.marginTop="16px";
+    if(!recipes.length){
+      wrap.appendChild(h("div","empty",ready?"Aucune recette. Appuie sur « Nouvelle recette » pour ajouter la première.":"Chargement…"));
+    }else{
+      var g=h("div","grid");
+      recipes.slice().sort(function(a,b){return a.name.localeCompare(b.name,"fr")}).forEach(function(r){
+        var c=h("button","rcard");c.type="button";
+        var ph=h("div","ph");
+        if(r.photo){var im=document.createElement("img");im.src=r.photo;im.alt="";im.loading="lazy";ph.appendChild(im)}else ph.textContent="Sans photo";
+        var tx=h("div","tx");tx.appendChild(h("span","nm",r.name));
+        tx.appendChild(h("span","sub",r.ingredients.length+" ingrédient"+(r.ingredients.length>1?"s":"")));
+        c.appendChild(ph);c.appendChild(tx);
+        c.addEventListener("click",function(){rview={mode:"detail",id:r.id};renderRecipes()});
+        g.appendChild(c);
+      });
+      wrap.appendChild(g);
+    }
+    box.appendChild(wrap);
+  }
+
+  function drawDetail(id){
+    var r=findRecipe(id);var box=$("recipes");box.textContent="";
+    var col=h("div");col.style.cssText="display:flex;flex-direction:column;gap:16px";
+    var back=h("button","ghost","← Recettes");back.type="button";
+    back.style.alignSelf="flex-start";
+    back.addEventListener("click",function(){rview={mode:"list"};renderRecipes()});
+    col.appendChild(back);
+    col.appendChild(h("h3",null,r.name));
+    if(r.photo){var im=document.createElement("img");im.className="hero";im.src=r.photo;im.alt=r.name;col.appendChild(im)}
+
+    var ib=h("div","card-box");ib.appendChild(h("span","lbl","Ingrédients"));
+    if(!r.ingredients.length)ib.appendChild(h("span","q","Aucun ingrédient."));
+    else{
+      var ul=document.createElement("ul");
+      r.ingredients.forEach(function(g){
+        var li=h("li");li.style.padding="10px 12px";
+        li.appendChild(h("span","label",g.name));
+        if(g.qty)li.appendChild(h("span","q",g.qty));
+        ul.appendChild(li);
+      });
+      ib.appendChild(ul);
+    }
+    col.appendChild(ib);
+
+    if(r.steps){var sb=h("div","card-box");sb.appendChild(h("span","lbl","Préparation"));sb.appendChild(h("div","steps",r.steps));col.appendChild(sb)}
+
+    var msg=h("div","ok");msg.setAttribute("role","status");msg.hidden=true;
+    var act=h("div","actions");
+    var addb=h("button","add","Ajouter les ingrédients à la liste");addb.type="button";
+    addb.disabled=!r.ingredients.length;
+    addb.addEventListener("click",function(){
+      if(!api)return;
+      var have={};items.forEach(function(i){if(!i.done)have[i.name.toLowerCase()]=1});
+      var up={},n=0,skip=0;
+      r.ingredients.forEach(function(g,k){
+        if(have[g.name.toLowerCase()]){skip++;return}
+        up[api.newKey()]={name:g.name,qty:g.qty||"",cat:g.cat,done:false,at:Date.now()+k};n++;
+      });
+      if(!n){msg.className="ok";msg.textContent="Tous les ingrédients sont déjà dans la liste.";msg.hidden=false;return}
+      api.multi(up).then(function(){
+        msg.className="ok";msg.textContent=n+" ajouté"+(n>1?"s":"")+" à la liste"+(skip?" ("+skip+" déjà présent"+(skip>1?"s":"")+")":"")+".";msg.hidden=false;
+      },function(){msg.className="err";msg.textContent="Échec de l'ajout. Vérifie la connexion et les règles de la base.";msg.hidden=false});
+    });
+    act.appendChild(addb);
+    var r2=h("div","row");
+    var eb=h("button","ghost","Modifier");eb.type="button";
+    eb.addEventListener("click",function(){rview={mode:"edit",id:r.id};drawEditor(r)});
+    var db=h("button","danger","Supprimer");db.type="button";
+    var armed=false;
+    db.addEventListener("click",function(){
+      if(!armed){armed=true;db.textContent="Confirmer la suppression";return}
+      if(!api)return;
+      api.recRemove(r.id).then(function(){rview={mode:"list"};renderRecipes()},function(){msg.className="err";msg.textContent="Échec de la suppression.";msg.hidden=false;armed=false;db.textContent="Supprimer"});
+    });
+    r2.appendChild(eb);r2.appendChild(db);act.appendChild(r2);
+    col.appendChild(act);col.appendChild(msg);
+    box.appendChild(col);
+  }
+
+  /* compression de la photo : max ~140 000 caractères pour respecter les règles */
+  function compress(file){
+    return new Promise(function(res,rej){
+      var fr=new FileReader();
+      fr.onerror=function(){rej()};
+      fr.onload=function(){
+        var img=new Image();
+        img.onerror=function(){rej()};
+        img.onload=function(){
+          var tries=[[720,.65],[600,.55],[480,.5],[380,.45]];
+          for(var i=0;i<tries.length;i++){
+            var m=tries[i][0],sc=Math.min(1,m/Math.max(img.width,img.height));
+            var c=document.createElement("canvas");c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);
+            c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+            var d=c.toDataURL("image/jpeg",tries[i][1]);
+            if(d.length<=140000)return res(d);
+          }
+          rej();
+        };
+        img.src=fr.result;
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  function drawEditor(r){
+    var box=$("recipes");box.textContent="";
+    var photo=r&&r.photo?r.photo:"";
+    var col=h("div");col.style.cssText="display:flex;flex-direction:column;gap:16px";
+    col.appendChild(h("h3",null,r?"Modifier la recette":"Nouvelle recette"));
+
+    var nm=document.createElement("input");nm.type="text";nm.id="rname";nm.maxLength=80;nm.placeholder="Nom de la recette";nm.setAttribute("aria-label","Nom de la recette");nm.value=r?r.name:"";
+    col.appendChild(nm);
+
+    var pb=h("div","card-box");pb.appendChild(h("span","lbl","Photo"));
+    var prev=document.createElement("img");prev.className="hero";prev.alt="Aperçu";
+    var perr=h("div","err");perr.hidden=true;
+    var file=document.createElement("input");file.type="file";file.accept="image/*";file.id="rphoto";file.setAttribute("aria-label","Choisir une photo");
+    var rm=h("button","ghost","Retirer la photo");rm.type="button";
+    function showPhoto(){prev.hidden=!photo;rm.hidden=!photo;if(photo)prev.src=photo}
+    showPhoto();
+    file.addEventListener("change",function(){
+      var f=file.files&&file.files[0];if(!f)return;
+      perr.hidden=true;
+      compress(f).then(function(d){photo=d;showPhoto()},function(){perr.textContent="Photo illisible ou trop lourde. Essaie une autre image.";perr.hidden=false});
+    });
+    rm.addEventListener("click",function(){photo="";file.value="";showPhoto()});
+    pb.appendChild(prev);pb.appendChild(file);pb.appendChild(rm);pb.appendChild(perr);
+    col.appendChild(pb);
+
+    var ib=h("div","card-box");ib.appendChild(h("span","lbl","Ingrédients"));
+    var rows=h("div");rows.style.cssText="display:flex;flex-direction:column;gap:10px";
+    function addRow(g){
+      var row=h("div","irow");
+      var n=document.createElement("input");n.type="text";n.className="n";n.maxLength=80;n.placeholder="Ingrédient";n.setAttribute("aria-label","Ingrédient");n.value=g?g.name:"";
+      var q=document.createElement("input");q.type="text";q.className="qq";q.maxLength=20;q.placeholder="Qté";q.setAttribute("aria-label","Quantité");q.value=g?g.qty:"";
+      var s=catSelect(g?g.cat:"Autre");s.setAttribute("aria-label","Rayon");
+      var x=h("button","ghost","Retirer");x.type="button";
+      x.addEventListener("click",function(){row.remove()});
+      row.appendChild(n);row.appendChild(q);row.appendChild(s);row.appendChild(x);
+      rows.appendChild(row);
+    }
+    (r&&r.ingredients.length?r.ingredients:[null,null,null]).forEach(addRow);
+    var ab=h("button","ghost","+ Ingrédient");ab.type="button";
+    ab.addEventListener("click",function(){addRow(null)});
+    ib.appendChild(rows);ib.appendChild(ab);col.appendChild(ib);
+
+    var sb=h("div","card-box");sb.appendChild(h("span","lbl","Préparation"));
+    var st=document.createElement("textarea");st.id="rsteps";st.maxLength=5000;st.placeholder="Étapes de préparation";st.setAttribute("aria-label","Préparation");st.value=r?r.steps:"";
+    sb.appendChild(st);col.appendChild(sb);
+
+    var err=h("div","err");err.hidden=true;
+    var r2=h("div","row");
+    var save=h("button","add","Enregistrer");save.type="button";
+    var cancel=h("button","ghost","Annuler");cancel.type="button";
+    cancel.addEventListener("click",function(){rview=r?{mode:"detail",id:r.id}:{mode:"list"};renderRecipes()});
+    save.addEventListener("click",function(){
+      if(!api)return;
+      var name=nm.value.trim();
+      if(!name){err.textContent="Le nom de la recette est obligatoire.";err.hidden=false;nm.focus();return}
+      var ing=[];
+      Array.prototype.forEach.call(rows.children,function(row){
+        var v=row.querySelectorAll("input,select");
+        var n=v[0].value.trim();if(!n)return;
+        ing.push({name:n,qty:v[1].value.trim(),cat:v[2].value});
+      });
+      var data={name:name,steps:st.value.trim(),at:r?r.at:Date.now()};
+      if(ing.length)data.ingredients=ing;
+      if(photo)data.photo=photo;
+      save.disabled=true;
+      var p=r?api.recSet(r.id,data).then(function(){return r.id}):api.recAdd(data);
+      p.then(function(id){rview={mode:"detail",id:id};renderRecipes()},function(){
+        save.disabled=false;err.textContent="Échec de l'enregistrement. Vérifie la connexion et que les règles de la base sont à jour.";err.hidden=false;
+      });
+    });
+    r2.appendChild(save);r2.appendChild(cancel);
+    col.appendChild(err);col.appendChild(r2);
+    box.appendChild(col);
+    window.scrollTo(0,0);
+  }
+
   render();
 
   try{
     const app=initializeApp(firebaseConfig);
-    const db=firebaseConfig.databaseURL?getDatabase(app,firebaseConfig.databaseURL):getDatabase(app);
-    const items_=ref(db,"items");
+    const db=getDatabase(app,firebaseConfig.databaseURL);
+    const items_=ref(db,"items"), rec_=ref(db,"recipes");
     api={
+      newKey:function(){return push(items_).key},
       add:function(d){return set(push(items_),d)},
       update:function(id,d){return update(ref(db,"items/"+id),d)},
       remove:function(id){return remove(ref(db,"items/"+id))},
-      multi:function(up){return update(items_,up)}
+      multi:function(up){return update(items_,up)},
+      recAdd:function(d){var r=push(rec_);return set(r,d).then(function(){return r.key})},
+      recSet:function(id,d){return set(ref(db,"recipes/"+id),d)},
+      recRemove:function(id){return remove(ref(db,"recipes/"+id))}
     };
     onValue(ref(db,".info/connected"),function(s){setSync(!!s.val(),s.val()?"Synchronisé":"Hors ligne")});
     onValue(items_,function(snap){
@@ -171,6 +417,15 @@ const firebaseConfig = {
       items=Object.keys(v).map(function(k){var o=v[k]||{};return {id:k,name:String(o.name||""),qty:String(o.qty||""),cat:CATS.indexOf(o.cat)>-1?o.cat:"Autre",done:!!o.done,at:+o.at||0}});
       ready=true;render();
     },function(){setSync(false,"Erreur");showErr("Lecture refusée. Vérifie les règles de la base.")});
+    onValue(rec_,function(snap){
+      var v=snap.val()||{};
+      recipes=Object.keys(v).map(function(k){
+        var o=v[k]||{},raw=o.ingredients||[],arr=Array.isArray(raw)?raw:Object.keys(raw).map(function(z){return raw[z]});
+        return {id:k,name:String(o.name||""),steps:String(o.steps||""),photo:typeof o.photo==="string"?o.photo:"",at:+o.at||0,
+          ingredients:arr.filter(Boolean).map(function(g){return {name:String(g.name||""),qty:String(g.qty||""),cat:CATS.indexOf(g.cat)>-1?g.cat:"Autre"}})};
+      });
+      ready=true;renderRecipes();
+    },function(){showErr("Lecture des recettes refusée. Mets à jour les règles de la base.")});
   }catch(e){setSync(false,"Erreur");showErr("Initialisation Firebase impossible. Vérifie firebaseConfig.")}
 })();
 </script>
